@@ -17,7 +17,7 @@ object OrderTimeoutWithFunction {
         val dataArray = data.split(",")
         OrderEvent(dataArray(0).toLong, dataArray(1), dataArray(3).toLong)
       })
-      .assignTimestampsAndWatermarks(new BoundedOutOfOrdernessTimestampExtractor[OrderEvent](Time.milliseconds((3000))) {
+      .assignTimestampsAndWatermarks(new BoundedOutOfOrdernessTimestampExtractor[OrderEvent](Time.seconds(3)) {
         override def extractTimestamp(element: OrderEvent): Long = {
           element.eventTime*1000L
         }
@@ -26,6 +26,7 @@ object OrderTimeoutWithFunction {
       .process(new OrderPayWithDetect())
 
     resourceStream.print("order timeout with function")
+    resourceStream.getSideOutput(new OutputTag[OrderResult]("orderTimeOut")).print("timeout")
     env.execute("order timeout with function")
   }
 }
@@ -69,7 +70,7 @@ class OrderPayWithDetect() extends KeyedProcessFunction[Long,OrderEvent,OrderRes
           out.collect(OrderResult(value.orderId,"order pay success"))
         }else{
           //超时输出侧输出流
-          ctx.output(orderTimeOutputTag,OrderResult(value.orderId,"order pay but time out"))
+          ctx.output(orderTimeOutputTag,OrderResult(value.orderId,"payed but already timeout"))
         }
         isCreateState.clear()
         tsState.clear()
@@ -92,5 +93,8 @@ class OrderPayWithDetect() extends KeyedProcessFunction[Long,OrderEvent,OrderRes
         //如果没有pay过，说明真正的15分钟超时了
         ctx.output(orderTimeOutputTag,OrderResult(ctx.getCurrentKey,"order time out"))
       }
+    isPayState.clear()
+    isCreateState.clear()
+    tsState.clear()
   }
 }
