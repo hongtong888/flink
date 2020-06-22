@@ -1,2 +1,2 @@
 # 简介
-包含flink的一些基础操作：window api、WaterMark、ProcessFunction api等基础操作
+以scala语言进行编写，包含flink：window api、WaterMark、ProcessFunction api等基础操作
